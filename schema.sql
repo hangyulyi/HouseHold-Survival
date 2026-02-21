@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
     user_id       SERIAL PRIMARY KEY,
     email         VARCHAR(255) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    username      VARCHAR(100),
+    country       VARCHAR(100),
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -61,6 +63,16 @@ CREATE TABLE IF NOT EXISTS leaderboard (
     leaderboard_id SERIAL PRIMARY KEY,
     user_id        INT REFERENCES users(user_id),
     total_score    INT DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS game_sessions (
+    session_id   SERIAL PRIMARY KEY,
+    user_id      INT REFERENCES users(user_id) ON DELETE CASCADE,
+    country      VARCHAR(100),
+    final_ending VARCHAR(100),
+    total_score  INT DEFAULT 0,
+    started_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
 );
 
 -- ============================================================

@@ -4,7 +4,7 @@ const pool = require('../db');
 
 // POST /api/auth/register
 const register = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, username, country } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
@@ -22,18 +22,25 @@ const register = async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
-      `INSERT INTO users (email, password_hash)
-       VALUES ($1, $2)
-       RETURNING user_id, email, created_at`,
-      [email, password_hash]
+      `INSERT INTO users (email, password_hash, username, country)
+       VALUES ($1, $2, $3, $4)
+       RETURNING user_id, email, username, country, created_at`,
+      [email, password_hash, username || null, country || null]
     );
 
     const user = result.rows[0];
 
-    // Create leaderboard entry for new user
+    // Create leaderboard entry
     await pool.query(
       `INSERT INTO leaderboard (user_id, total_score) VALUES ($1, 0)`,
       [user.user_id]
+    );
+
+    // Create opening game session
+    await pool.query(
+      `INSERT INTO game_sessions (user_id, country)
+       VALUES ($1, $2)`,
+      [user.user_id, country || null]
     );
 
     const token = jwt.sign(
@@ -83,7 +90,12 @@ const login = async (req, res) => {
     res.json({
       message: 'Login successful.',
       token,
-      user: { user_id: user.user_id, email: user.email }
+      user: {
+        user_id:  user.user_id,
+        email:    user.email,
+        username: user.username,
+        country:  user.country
+      }
     });
   } catch (err) {
     console.error('Login error:', err);

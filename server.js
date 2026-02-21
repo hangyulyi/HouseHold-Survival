@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const scenarioRoutes = require('./routes/scenarioRoutes');
 const decisionRoutes = require('./routes/decisionRoutes');
 const progressRoutes = require('./routes/progressRoutes');
+const sessionRoutes = require('./routes/sessionRoutes');
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/scenarios', scenarioRoutes);
 app.use('/api/decisions', decisionRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/sessions', sessionRoutes);
 
 // Health check
 app.get('/', (req, res) => {
