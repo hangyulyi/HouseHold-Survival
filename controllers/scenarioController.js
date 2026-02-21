@@ -3,7 +3,9 @@ const pool = require('../db');
 // GET /api/scenarios
 const getAllScenarios = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM scenarios ORDER BY id ASC');
+    const result = await pool.query(
+      'SELECT * FROM scenarios ORDER BY scenario_id ASC'
+    );
     res.json({ scenarios: result.rows });
   } catch (err) {
     console.error('getAllScenarios error:', err);
@@ -16,7 +18,7 @@ const getScenarioById = async (req, res) => {
   const { id } = req.params;
   try {
     const scenarioResult = await pool.query(
-      'SELECT * FROM scenarios WHERE id = $1', [id]
+      'SELECT * FROM scenarios WHERE scenario_id = $1', [id]
     );
     if (scenarioResult.rows.length === 0) {
       return res.status(404).json({ error: 'Scenario not found.' });
