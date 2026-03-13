@@ -1,10 +1,9 @@
 const pool = require('../db');
 
-// GET /api/scenarios
 const getAllScenarios = async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM scenarios ORDER BY scenario_id ASC'
+      'SELECT * FROM scenarios ORDER BY phase_number ASC'
     );
     res.json({ scenarios: result.rows });
   } catch (err) {
@@ -13,24 +12,39 @@ const getAllScenarios = async (req, res) => {
   }
 };
 
-// GET /api/scenarios/:id
 const getScenarioById = async (req, res) => {
-  const { id } = req.params;
+  const { id }      = req.params;
+  const { country } = req.query;
+
   try {
     const scenarioResult = await pool.query(
       'SELECT * FROM scenarios WHERE scenario_id = $1', [id]
     );
+
     if (scenarioResult.rows.length === 0) {
       return res.status(404).json({ error: 'Scenario not found.' });
     }
 
+    const scenario = scenarioResult.rows[0];
+
     const decisionsResult = await pool.query(
-      'SELECT * FROM decisions WHERE scenario_id = $1', [id]
+      'SELECT * FROM decisions WHERE scenario_id = $1 ORDER BY decision_id ASC', [id]
     );
 
+    let countryEvent = null;
+    if (country) {
+      const eventResult = await pool.query(
+        `SELECT * FROM country_events
+         WHERE country_code = $1 AND event_phase = $2`,
+        [country, scenario.phase_number]
+      );
+      countryEvent = eventResult.rows[0] || null;
+    }
+
     res.json({
-      scenario: scenarioResult.rows[0],
-      decisions: decisionsResult.rows
+      scenario,
+      decisions:     decisionsResult.rows,
+      country_event: countryEvent,
     });
   } catch (err) {
     console.error('getScenarioById error:', err);

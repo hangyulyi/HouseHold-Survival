@@ -1,13 +1,19 @@
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const pool = require('../db');
+const jwt    = require('jsonwebtoken');
+const pool   = require('../db');
+
+const VALID_CODES = ['us', 'in', 'ke', 'se', 'br'];
 
 // POST /api/auth/register
 const register = async (req, res) => {
-  const { email, password, username, country } = req.body;
+  const { email, password, username, country_code } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  if (country_code && !VALID_CODES.includes(country_code)) {
+    return res.status(400).json({ error: `country_code must be one of: ${VALID_CODES.join(', ')}` });
   }
 
   try {
@@ -22,25 +28,25 @@ const register = async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
-      `INSERT INTO users (email, password_hash, username, country)
+      `INSERT INTO users (email, password_hash, username, country_code)
        VALUES ($1, $2, $3, $4)
-       RETURNING user_id, email, username, country, created_at`,
-      [email, password_hash, username || null, country || null]
+       RETURNING user_id, email, username, country_code, created_at`,
+      [email, password_hash, username || null, country_code || null]
     );
 
     const user = result.rows[0];
 
     // Create leaderboard entry
     await pool.query(
-      `INSERT INTO leaderboard (user_id, total_score) VALUES ($1, 0)`,
-      [user.user_id]
+      `INSERT INTO leaderboard (user_id, country_code, total_score) VALUES ($1, $2, 0)`,
+      [user.user_id, country_code || null]
     );
 
     // Create opening game session
     await pool.query(
-      `INSERT INTO game_sessions (user_id, country)
+      `INSERT INTO game_sessions (user_id, country_code)
        VALUES ($1, $2)`,
-      [user.user_id, country || null]
+      [user.user_id, country_code || null]
     );
 
     const token = jwt.sign(
@@ -74,7 +80,7 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
-    const user = result.rows[0];
+    const user  = result.rows[0];
     const match = await bcrypt.compare(password, user.password_hash);
 
     if (!match) {
@@ -91,11 +97,11 @@ const login = async (req, res) => {
       message: 'Login successful.',
       token,
       user: {
-        user_id:  user.user_id,
-        email:    user.email,
-        username: user.username,
-        country:  user.country
-      }
+        user_id:      user.user_id,
+        email:        user.email,
+        username:     user.username,
+        country_code: user.country_code,
+      },
     });
   } catch (err) {
     console.error('Login error:', err);
