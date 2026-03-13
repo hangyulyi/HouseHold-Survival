@@ -9,7 +9,8 @@
 
 -- Then connect and run the rest:
 
-DROP TABLE IF EXISTS player_progress   CASCADE;
+DROP TABLE IF EXISTS world_bank_cache   CASCADE;
+DROP TABLE IF EXISTS player_progress    CASCADE;
 DROP TABLE IF EXISTS leaderboard        CASCADE;
 DROP TABLE IF EXISTS game_sessions      CASCADE;
 DROP TABLE IF EXISTS decisions          CASCADE;
@@ -125,6 +126,22 @@ CREATE TABLE game_sessions (
     completed_at   TIMESTAMP
 );
 
+-- ── world_bank_cache ─────────────────────────────────────────
+CREATE TABLE world_bank_cache (
+    cache_id                      SERIAL PRIMARY KEY,
+    country_code                  VARCHAR(10) REFERENCES countries(country_code) ON DELETE CASCADE,
+    gni_per_capita                NUMERIC(12,2),
+    life_expectancy               NUMERIC(5,2),
+    health_expenditure            NUMERIC(5,2),
+    education_spending            NUMERIC(5,2),
+    poverty_rate                  NUMERIC(5,2),
+    derived_starting_money        INT,
+    derived_starting_health       INT,
+    derived_healthcare_cost_mult  NUMERIC(4,2),
+    derived_education_access_mult NUMERIC(4,2),
+    fetched_at                    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 
 -- ============================================================
 -- SEED: COUNTRIES
@@ -223,9 +240,9 @@ INSERT INTO decisions (scenario_id, choice_text, is_minigame_trigger, impact_sco
 
 -- Phase 2: Step 3 (spend the earnings)
 INSERT INTO decisions (scenario_id, choice_text, impact_score, economic_score, social_score, health_score) VALUES
-(2, 'Use earned money to pay rent',   10,  10,  -5,  0),
-(2, 'Use earned money to buy food',    8,  -5,  10, 10),
-(2, 'Save the earned money',           5,  15,  -5,  0),
+(2, 'Use earned money to pay rent',    10,  10,  -5,  0),
+(2, 'Use earned money to buy food',     8,  -5,  10, 10),
+(2, 'Save the earned money',            5,  15,  -5,  0),
 (2, 'Split money across needs poorly', -5,  -5,  -5, -5);
 
 -- Phase 3
@@ -325,9 +342,9 @@ INSERT INTO country_events (
 
 ('in', 4, 'Arranged Marriage Financial Pressure',
  'Extended family is pressuring you to contribute to a cousin''s wedding ceremony.',
- 'Contribute ₹10,000',   -8, 12,  0,
- 'Attend but not contribute', 0,  3,  0,
- 'Decline entirely',          8,-15, -5),
+ 'Contribute ₹10,000',        -8, 12,  0,
+ 'Attend but not contribute',  0,  3,  0,
+ 'Decline entirely',           8,-15, -5),
 
 ('in', 5, 'Online Upskilling Opportunity',
  'A government-subsidised digital skills programme is available free on weekends.',
@@ -399,15 +416,15 @@ INSERT INTO country_events (
 
 ('se', 4, 'Integration Programme Offer',
  'The city offers a free integration and language programme that could improve your social network and job prospects.',
- 'Join the programme',      0, 12,  5,
- 'Decline — already settled', 0, -3,  0,
+ 'Join the programme',         0, 12,  5,
+ 'Decline — already settled',  0, -3,  0,
  NULL, 0, 0, 0),
 
 ('se', 5, 'Tax Increase Notice',
  'A small municipal tax increase reduces your monthly take-home by SEK 400.',
- 'Accept it — it funds services you use',      -5,  8,  0,
- 'Contest it through your union',              -3,  3,  0,
- 'Reduce discretionary spending to compensate', 0, -5,  0);
+ 'Accept it — it funds services you use',       -5,  8,  0,
+ 'Contest it through your union',               -3,  3,  0,
+ 'Reduce discretionary spending to compensate',  0, -5,  0);
 
 -- ── Brazil ────────────────────────────────────────────────────
 INSERT INTO country_events (
@@ -418,9 +435,9 @@ INSERT INTO country_events (
 ) VALUES
 ('br', 1, 'Inflation Spike',
  'Monthly inflation has jumped. Your grocery bill is 20% higher than last month and savings are worth less.',
- 'Buy staple goods in bulk now',           -10,  2,  3,
- 'Cut back on food quality',                 5, -5,-10,
- 'Find a cheaper neighbourhood market',      0,  3,  0),
+ 'Buy staple goods in bulk now',            -10,  2,  3,
+ 'Cut back on food quality',                  5, -5,-10,
+ 'Find a cheaper neighbourhood market',       0,  3,  0),
 
 ('br', 2, 'Informal Gig Economy Work',
  'A delivery app recruiter approaches you. The pay is inconsistent but starts immediately.',
@@ -430,9 +447,9 @@ INSERT INTO country_events (
 
 ('br', 3, 'SUS vs Private Clinic',
  'Brazil''s public health system (SUS) is free but overwhelmed. A private clinic can see your parent today.',
- 'Use SUS — free but a long wait',  0,  0,-12,
- 'Pay for private care',           -15,  3, 18,
- 'Try a community health post (UBS)', -3, 2,  5),
+ 'Use SUS — free but a long wait',       0,  0,-12,
+ 'Pay for private care',                -15,  3, 18,
+ 'Try a community health post (UBS)',    -3,  2,  5),
 
 ('br', 4, 'Community Support Event',
  'Neighbours organise a churrasco (barbecue) fundraiser to help your family.',
@@ -442,20 +459,6 @@ INSERT INTO country_events (
 
 ('br', 5, 'SENAI Technical Training',
  'SENAI is offering a free welding and electrical certification course.',
- 'Enrol in the course',                  -3,  8,  3,
- 'Cannot fit it into your schedule',      0, -3,  0,
+ 'Enrol in the course',             -3,  8,  3,
+ 'Cannot fit it into your schedule', 0, -3,  0,
  NULL, 0, 0, 0);
-```
-
----
-
-## `.env` (create this yourself, never commit it)
-```
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=household_survival
-DB_USER=postgres
-DB_PASSWORD=yourpassword
-JWT_SECRET=some_very_long_random_secret_here
-JWT_EXPIRES_IN=7d
-PORT=3000
