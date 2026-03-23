@@ -36,16 +36,13 @@ const register = async (req, res) => {
 
     const user = result.rows[0];
 
-    // Create leaderboard entry
     await pool.query(
       `INSERT INTO leaderboard (user_id, country_code, total_score) VALUES ($1, $2, 0)`,
       [user.user_id, country_code || null]
     );
 
-    // Create opening game session
     await pool.query(
-      `INSERT INTO game_sessions (user_id, country_code)
-       VALUES ($1, $2)`,
+      `INSERT INTO game_sessions (user_id, country_code) VALUES ($1, $2)`,
       [user.user_id, country_code || null]
     );
 
@@ -109,4 +106,33 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, login };
+// PATCH /api/auth/update
+const updateProfile = async (req, res) => {
+  const { username, email, password } = req.body;
+  const user_id = req.user.id;
+
+  try {
+    let password_hash = null;
+    if (password) {
+      password_hash = await bcrypt.hash(password, 10);
+    }
+
+    const result = await pool.query(
+      `UPDATE users
+       SET username      = COALESCE($1, username),
+           email         = COALESCE($2, email),
+           password_hash = COALESCE($3, password_hash)
+       WHERE user_id = $4
+       RETURNING user_id, email, username, country_code`,
+      [username || null, email || null, password_hash, user_id]
+    );
+
+    res.json({ message: 'Profile updated.', user: result.rows[0] });
+  } catch (err) {
+    console.error('updateProfile error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+};
+
+// single export at the bottom
+module.exports = { register, login, updateProfile };
