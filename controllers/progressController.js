@@ -28,11 +28,11 @@ const getLeaderboard = async (req, res) => {
         SELECT l.leaderboard_id, u.username, u.email, gs.country_code, l.total_score
         FROM leaderboard l
         JOIN users u ON u.user_id = l.user_id
-        JOIN (
+        LEFT JOIN (
           SELECT DISTINCT ON (user_id) user_id, country_code
           FROM game_sessions
           WHERE country_code IS NOT NULL
-          ORDER BY user_id, completed_at DESC
+          ORDER BY user_id, started_at DESC
         ) gs ON gs.user_id = l.user_id
         WHERE gs.country_code = $1
         ORDER BY l.total_score DESC
@@ -43,11 +43,11 @@ const getLeaderboard = async (req, res) => {
         SELECT l.leaderboard_id, u.username, u.email, gs.country_code, l.total_score
         FROM leaderboard l
         JOIN users u ON u.user_id = l.user_id
-        JOIN (
+        LEFT JOIN (
           SELECT DISTINCT ON (user_id) user_id, country_code
           FROM game_sessions
           WHERE country_code IS NOT NULL
-          ORDER BY user_id, completed_at DESC
+          ORDER BY user_id, started_at DESC
         ) gs ON gs.user_id = l.user_id
         ORDER BY l.total_score DESC
         LIMIT 10`;
@@ -74,13 +74,10 @@ const resetProgress = async (req, res) => {
   }
 };
 
-// GET /api/progress/summary
-// Powers the final result screen in Unity
 const getProgressSummary = async (req, res) => {
   const user_id = req.user.id;
 
   try {
-    // 1. Per-phase breakdown — what decision the player made each phase and its scores
     const phaseResult = await pool.query(
       `SELECT
          pp.scenario_id,
@@ -99,7 +96,6 @@ const getProgressSummary = async (req, res) => {
       [user_id]
     );
 
-    // 2. Cumulative totals across all phases
     const totalsResult = await pool.query(
       `SELECT
          COALESCE(SUM(pp.score), 0)           AS total_score,
@@ -112,12 +108,11 @@ const getProgressSummary = async (req, res) => {
       [user_id]
     );
 
-    // 3. Most recent completed session — ending label, country, character name
     const sessionResult = await pool.query(
       `SELECT final_ending, total_score, country_code, character_name
        FROM game_sessions
        WHERE user_id = $1
-       ORDER BY completed_at DESC
+       ORDER BY started_at DESC
        LIMIT 1`,
       [user_id]
     );
