@@ -22,24 +22,38 @@ const getLeaderboard = async (req, res) => {
   const { country } = req.query;
   try {
     let query, params;
+
     if (country) {
       query = `
-        SELECT l.leaderboard_id, u.username, u.email, l.country_code, l.total_score
+        SELECT l.leaderboard_id, u.username, u.email, gs.country_code, l.total_score
         FROM leaderboard l
         JOIN users u ON u.user_id = l.user_id
-        WHERE l.country_code = $1
+        JOIN (
+          SELECT DISTINCT ON (user_id) user_id, country_code
+          FROM game_sessions
+          WHERE country_code IS NOT NULL
+          ORDER BY user_id, completed_at DESC
+        ) gs ON gs.user_id = l.user_id
+        WHERE gs.country_code = $1
         ORDER BY l.total_score DESC
         LIMIT 10`;
       params = [country];
     } else {
       query = `
-        SELECT l.leaderboard_id, u.username, u.email, l.country_code, l.total_score
+        SELECT l.leaderboard_id, u.username, u.email, gs.country_code, l.total_score
         FROM leaderboard l
         JOIN users u ON u.user_id = l.user_id
+        JOIN (
+          SELECT DISTINCT ON (user_id) user_id, country_code
+          FROM game_sessions
+          WHERE country_code IS NOT NULL
+          ORDER BY user_id, completed_at DESC
+        ) gs ON gs.user_id = l.user_id
         ORDER BY l.total_score DESC
         LIMIT 10`;
       params = [];
     }
+
     const result = await pool.query(query, params);
     res.json({ leaderboard: result.rows });
   } catch (err) {
